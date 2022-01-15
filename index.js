@@ -5,32 +5,22 @@ var contractAddress='0xFd553404A262FEb94c08FCe4b086A212BA5F4efF';
 var customHttpProvider = new ethers.providers.JsonRpcProvider(url);
 
 var signer = customHttpProvider.getSigner();
-var presaleContract = new ethers.Contract(
-    contractAddress,
-    launchpadAbi,
-    signer
-  );
+var presaleContract = new ethers.Contract(contractAddress,launchpadAbi,signer);
 
     // filter on launchpad created
-    let filterCreated = {
-        address: contractAddress,
-        topics: [ethers.utils.id('PresaleCreated(address,address,uint256)')],
-      };
+      let filterCreated =   presaleContract.filters.PresaleCreated(null,null,null);
 
- // filter on launchpad launched
-      let filterLaunched = {
-        address: contractAddress,
-        topics: [ethers.utils.id('PresaleLaunched(uint256)')],
-      };
+      // filter on launchpad launched
+      let filterLaunched =presaleContract.filters.PresaleLaunched(null);
 
-      customHttpProvider.on(filterCreated, (log, event) => {
+      presaleContract.on(filterCreated, (owner, token, presaleId) => {
         // new launchpad created
-        console.log("launchpad created", log, event);
+        console.log("launchpad created", owner,token,presaleId);
       });
 
-      customHttpProvider.on(filterLaunched, (log, event) => {
+      presaleContract.on(filterLaunched, (presaleId) => {
         // launchpad launched
-        console.log("launchpad launched", log, event);
+        console.log("launchpad launched ", presaleId);
       });
 
 customHttpProvider.getBlockNumber().then((result) => {
