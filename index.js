@@ -1,29 +1,31 @@
-var ethers = require('ethers');  
-var launchpadAbi = require('./abi/Launchpad.json');  
-var url = 'https://data-seed-prebsc-1-s1.binance.org:8545/';
-var contractAddress='0xFd553404A262FEb94c08FCe4b086A212BA5F4efF';
-var customHttpProvider = new ethers.providers.JsonRpcProvider(url);
+import DataIndex from './data-index.js'
+import { ethers } from 'ethers'
+import express from 'express'
 
-var signer = customHttpProvider.getSigner();
-var presaleContract = new ethers.Contract(contractAddress,launchpadAbi,signer);
+var app = express()
+const port = 3000
 
-    // filter on launchpad created
-      let filterCreated =   presaleContract.filters.PresaleCreated(null,null,null);
+var data = new DataIndex()
+await data.getData()
+data.listen()
+var url = 'https://data-seed-prebsc-1-s1.binance.org:8545/'
+var contractAddress = '0xFd553404A262FEb94c08FCe4b086A212BA5F4efF'
+var customHttpProvider = new ethers.providers.JsonRpcProvider(url)
 
-      // filter on launchpad launched
-      let filterLaunched =presaleContract.filters.PresaleLaunched(null);
+app.get('/', async function (req, res) {
+    const blockNumber = await customHttpProvider.getBlockNumber()
+    const block = await customHttpProvider.getBlock(blockNumber)
+    res.send(
+        `Current block number ${blockNumber} & timestamp ${
+            block.timestamp
+        } & date ${new Date(block.timestamp * 1000)}`,
+    )
+})
 
-      presaleContract.on(filterCreated, (owner, token, presaleId) => {
-        // new launchpad created
-        console.log("launchpad created", owner,token,presaleId);
-      });
+app.get('/presales', async function (req, res) {
+    res.send(data.datas)
+})
 
-      presaleContract.on(filterLaunched, (presaleId) => {
-        // launchpad launched
-        console.log("launchpad launched ", presaleId);
-      });
-
-customHttpProvider.getBlockNumber().then((result) => {
-    console.log("Current block number: " + result);
-});
-
+app.listen(port, () => {
+    console.log(`Example app listening at http://localhost:${port}`)
+})
