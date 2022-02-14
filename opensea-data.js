@@ -63,10 +63,9 @@ export default class DataIndex {
                 start,
                 end,
             );
-            result.push(logsFrom);
+            //result.push(logsFrom);
+            await this.createFile(logsFrom);
         }
-
-        await this.createFile(result.flat());
 
         console.log('file created');
     }
