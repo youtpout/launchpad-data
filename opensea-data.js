@@ -26,44 +26,16 @@ export default class DataIndex {
 
     listen() {
         // filter on launchpad created
-        let filterCreated = this.presaleContract.filters.TransferSingle(
-            null,
-            null,
-            null,
-            null,
-            null,
-        );
+        let filterCreated = this.presaleContract.filters.TransferSingle();
 
         // filter on launchpad launched
 
-        // this.presaleContract.on(
-        //     filterCreated,
-        //     (operator, from, to, id, value) => {
-        //         // new launchpad created
-        //         console.log('transfer single', operator, from, to, id, value);
-        //     },
-        // );
-
-        // let filter = {
-        //     address: this.contractAddress,
-        //     topics: [
-        //         ethers.utils.id(
-        //             'TransferSingle(address,address,address,uint256,uint256)',
-        //         ),
-        //     ],
-        // };
-
-        // this.customHttpProvider.on(filter, (log, event) => {
-        //     // Emitted whenever a DAI token transfer occurs
-        //     console.log('transfer single', log, event);
-        // });
-
         this.presaleContract.on(
-            'TransferSingle',
+            filterCreated,
             (operator, from, to, id, value, event) => {
                 // new launchpad created
-                //console.log('transfer single', operator, from, to, id, value);
-                console.log('event', JSON.stringify(event.transactionHash));
+                console.log('transfer single', operator, from, to, id, value);
+                console.log('event', event.transactionHash);
             },
         );
     }
