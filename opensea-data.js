@@ -1,7 +1,6 @@
 import { ethers } from 'ethers';
 import { openseaAbi } from './abi/openseaAbi.js';
 import * as fs from 'fs';
-import { log } from 'util';
 
 export default class DataIndex {
     url = 'https://polygon-rpc.com';
@@ -10,7 +9,7 @@ export default class DataIndex {
     signer = null;
     presaleContract = null;
     datas = [];
-    lastBlock = 24925450;
+    lastBlock = 24926600;
 
     constructor() {
         this.customHttpProvider = new ethers.providers.JsonRpcProvider(
@@ -45,7 +44,7 @@ export default class DataIndex {
     }
 
     async getData() {
-        const header = 'to, from, id, value, type, txHash, block \r\n';
+        const header = 'to, from, value, txHash, block \r\n';
         try {
             fs.writeFileSync('opensea.csv', header);
             //file written successfully
@@ -54,36 +53,22 @@ export default class DataIndex {
         }
 
         let filterCreated = this.presaleContract.filters.TransferSingle();
-
-        let tasks = [];
-        for (let index = 0; index < 50; index++) {
+        let result = [];
+        for (let index = 0; index < 70; index++) {
             const start = this.lastBlock - 1000 * (index + 1);
             const end = this.lastBlock - 1000 * index;
-            // console.log('from to', start, end);
-            // let logsFrom = await this.presaleContract.queryFilter(
-            //     filterCreated,
-            //     start,
-            //     end,
-            // );
-            let task = this.loadData(filterCreated, start, end);
-            tasks.push(task);
+            console.log('from to', start, end);
+            let logsFrom = await this.presaleContract.queryFilter(
+                filterCreated,
+                start,
+                end,
+            );
+            result.push(logsFrom);
         }
 
-        let result = await Promise.all(tasks);
-        let logsFrom = result.flat();
-        console.log(logsFrom?.length);
-        await this.createFile(logsFrom);
-        console.log('file created');
-    }
+        await this.createFile(result.flat());
 
-    async loadData(filter, start, end) {
-        console.log('from to', start, end);
-        let logsFrom = await this.presaleContract.queryFilter(
-            filter,
-            start,
-            end,
-        );
-        return logsFrom;
+        console.log('file created');
     }
 
     async createFile(logsFrom) {
@@ -92,13 +77,13 @@ export default class DataIndex {
         for (let index = 0; index < logsFrom.length; index++) {
             const element = logsFrom[index];
             const args = element.args;
-            let airType =
+            let airDrop =
                 logsFrom.filter(
                     (r) => r.transactionHash == element.transactionHash,
-                ).length > 1
-                    ? 'airdrop'
-                    : 'single';
-            result += `${args.to},${args.from},${args.id},${args.value},${airType},${element.transactionHash},${element.blockNumber} \r\n`;
+                ).length > 1;
+            if (!airDrop && args.value.toString() === '1') {
+                result += `${args.to},${args.from},${args.value},${element.transactionHash},${element.blockNumber} \r\n`;
+            }
         }
         try {
             fs.appendFileSync('opensea.csv', result);
