@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { openseaAbi } from './abi/openseaAbi.js';
+import * as fs from 'fs';
 
 export default class DataIndex {
     url = 'https://polygon-rpc.com';
@@ -25,6 +26,7 @@ export default class DataIndex {
     }
 
     listen() {
+        return;
         // filter on launchpad created
         let filterCreated = this.presaleContract.filters.TransferSingle();
 
@@ -41,13 +43,43 @@ export default class DataIndex {
     }
 
     async getData() {
-        // const count = await this.presaleContract.presalesCount()
-        // console.log(count)
-        // for (let index = 0; index < count; index++) {
-        //     console.log(index)
-        //     this.presaleContract
-        //         .presales(index)
-        //         .then((element) => this.datas.push(element))
-        // }
+        const header =
+            'to, operator, from, id, value, type, txHash, block \r\n';
+        try {
+            fs.writeFileSync('opensea.csv', header);
+            //file written successfully
+        } catch (err) {
+            console.error(err);
+        }
+
+        let filterCreated = this.presaleContract.filters.TransferSingle();
+        let logsFrom = await this.presaleContract.queryFilter(
+            filterCreated,
+            -100,
+            'latest',
+        );
+        await this.createFile(logsFrom);
+        console.log('file created');
+    }
+
+    async createFile(logsFrom) {
+        let result = '';
+        for (let index = 0; index < logsFrom.length; index++) {
+            const element = logsFrom[index];
+            const args = element.args;
+            let airType =
+                logsFrom.filter(
+                    (r) => r.transactionHash == element.transactionHash,
+                ).length > 1
+                    ? 'airdrop'
+                    : 'single';
+            result += `${args.to},${args.operator},${args.from},${args.id},${args.value},${airType},${element.transactionHash},${element.blockNumber} \r\n`;
+        }
+        try {
+            fs.appendFileSync('opensea.csv', result);
+            //file written successfully
+        } catch (err) {
+            console.error(err);
+        }
     }
 }
