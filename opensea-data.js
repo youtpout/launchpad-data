@@ -11,6 +11,7 @@ export default class DataIndex {
     datas = [];
     lastBlock = 24926600;
     indexFile = 0;
+    uniqueAddress = [];
 
     constructor() {
         this.customHttpProvider = new ethers.providers.JsonRpcProvider(
@@ -57,7 +58,7 @@ export default class DataIndex {
 
         let filterCreated = this.presaleContract.filters.TransferSingle();
         let result = [];
-        for (let index = 0; index < 70; index++) {
+        for (let index = 0; index < 200; index++) {
             const start = this.lastBlock - 1000 * (index + 1);
             const end = this.lastBlock - 1000 * index;
             console.log('from to', start, end);
@@ -84,7 +85,12 @@ export default class DataIndex {
                 logsFrom.filter(
                     (r) => r.transactionHash == element.transactionHash,
                 ).length > 1;
-            if (!airDrop && args.value.toString() === '1') {
+            if (
+                !airDrop &&
+                args.value.toString() === '1' &&
+                !this.uniqueAddress.some((uni) => uni === args.to)
+            ) {
+                this.uniqueAddress.push(args.to);
                 result += `${args.to},${args.from},${args.value},${element.transactionHash},${element.blockNumber} \r\n`;
                 this.indexFile++;
             }
