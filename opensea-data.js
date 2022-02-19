@@ -10,6 +10,7 @@ export default class DataIndex {
     presaleContract = null;
     datas = [];
     lastBlock = 24926600;
+    indexFile = 0;
 
     constructor() {
         this.customHttpProvider = new ethers.providers.JsonRpcProvider(
@@ -52,6 +53,8 @@ export default class DataIndex {
             console.error(err);
         }
 
+        this.lastBlock = await this.customHttpProvider.getBlockNumber();
+
         let filterCreated = this.presaleContract.filters.TransferSingle();
         let result = [];
         for (let index = 0; index < 70; index++) {
@@ -65,6 +68,7 @@ export default class DataIndex {
             );
             //result.push(logsFrom);
             await this.createFile(logsFrom);
+            console.log('index file', this.indexFile);
         }
 
         console.log('file created');
@@ -82,6 +86,7 @@ export default class DataIndex {
                 ).length > 1;
             if (!airDrop && args.value.toString() === '1') {
                 result += `${args.to},${args.from},${args.value},${element.transactionHash},${element.blockNumber} \r\n`;
+                this.indexFile++;
             }
         }
         try {
