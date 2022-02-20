@@ -9,7 +9,7 @@ export default class DataIndex {
     signer = null;
     presaleContract = null;
     datas = [];
-    lastBlock = 24926600;
+    lastBlock = 24826600;
     indexFile = 0;
     uniqueAddress = [];
 
@@ -58,21 +58,33 @@ export default class DataIndex {
 
         let filterCreated = this.presaleContract.filters.TransferSingle();
         let result = [];
-        for (let index = 0; index < 200; index++) {
+        for (let index = 0; index < 1000; index++) {
             const start = this.lastBlock - 1000 * (index + 1);
             const end = this.lastBlock - 1000 * index;
             console.log('from to', start, end);
-            let logsFrom = await this.presaleContract.queryFilter(
-                filterCreated,
-                start,
-                end,
-            );
-            //result.push(logsFrom);
-            await this.createFile(logsFrom);
-            console.log('index file', this.indexFile);
+            try {
+                let logsFrom = await this.presaleContract.queryFilter(
+                    filterCreated,
+                    start,
+                    end,
+                );
+                //result.push(logsFrom);
+                await this.createFile(logsFrom);
+                console.log('index file', this.indexFile);
+            } catch (error) {
+                console.log('error block');
+            }
         }
 
         console.log('file created');
+    }
+
+    async tryFilter(filterCreated, start, end) {
+        return await this.presaleContract.queryFilter(
+            filterCreated,
+            start,
+            end,
+        );
     }
 
     async createFile(logsFrom) {
