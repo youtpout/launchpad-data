@@ -1,5 +1,4 @@
 import { ethers } from 'ethers';
-import { openseaAbi } from './abi/openseaAbi.js';
 import * as fs from 'fs';
 import { contractAbi } from './abi/contractAbi.js';
 
@@ -27,48 +26,61 @@ export default class DataIndex {
         );
     }
 
-    listen() {
-        return;
-        // filter on launchpad created
-        this.filterCreated = this.presaleContract.filters.TransferSingle();
-
-        // filter on launchpad launched
-
-        this.presaleContract.on(
-            filterCreated,
-            (operator, from, to, id, value, event) => {
-                // new launchpad created
-                console.log('transfer single', operator, from, to, id, value);
-                console.log('event', event.transactionHash);
-            },
-        );
-    }
-
     async getData() {
-        const header = 'to, from, value, txHash, block \r\n';
+
+        const listContracts=[];
+        const listWallets=[];
+        const listInvalids=[];
         try {
-            fs.readFileSync('opensea.csv', header);
-            //file written successfully
+
+          const allFileContents = fs.readFileSync('addressesleft.csv', 'utf-8');
+
+          var lines= allFileContents.split(/\r?\n/);
+          console.log("lines",lines.length);
+
+          for (let index = 0; index < lines.length; index++) {
+              const line = lines[index];
+              try {
+                const address=ethers.utils.getAddress(line.toLowerCase());
+                const isContract=await this.presaleContract.isContract(address);
+                console.log(address,isContract);
+                if(isContract){
+                    listContracts.push(address);
+                }else{
+                    listWallets.push(address);
+                }
+              } catch (err) {
+                console.error(err);
+                listInvalids.push(line);
+              }
+          }
+
         } catch (err) {
             console.error(err);
         }
 
-        let filterCreated = this.presaleContract.filters.TransferSingle();
-        let result = [];
-        for (let index = 0; index < 70; index++) {
-            const start = this.lastBlock - 1000 * (index + 1);
-            const end = this.lastBlock - 1000 * index;
-            console.log('from to', start, end);
-            let logsFrom = await this.presaleContract.queryFilter(
-                filterCreated,
-                start,
-                end,
-            );
-            //result.push(logsFrom);
-            await this.createFile(logsFrom);
-        }
+        console.log("read end");
 
-        console.log('file created');
+        let contractFile='';
+        let walletFile='';
+        let invalidFile='';
+         listContracts.forEach(r=>{
+             contractFile+=r+" \r\n";
+         })
+         listWallets.forEach(r=>{
+            walletFile+=r+" \r\n";
+        })
+        listInvalids.forEach(r=>{
+            invalidFile+=r+" \r\n";
+        })
+        try {
+            fs.appendFileSync('contracts.csv', contractFile);
+            fs.appendFileSync('wallets.csv', walletFile);
+            fs.appendFileSync('invalids.csv', invalidFile);
+            //file written successfully
+        } catch (err) {
+            console.error(err);
+        }
     }
 
     async createFile(logsFrom) {

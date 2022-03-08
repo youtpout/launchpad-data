@@ -7,7 +7,6 @@ const port = 3000;
 
 var data = new DataIndex();
 await data.getData();
-data.listen();
 var url = 'https://polygon-rpc.com';
 var contractAddress = '0x2953399124f0cbb46d2cbacd8a89cf0599974963';
 var customHttpProvider = new ethers.providers.JsonRpcProvider(url);
