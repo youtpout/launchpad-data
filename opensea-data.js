@@ -1,10 +1,11 @@
 import { ethers } from 'ethers';
 import { openseaAbi } from './abi/openseaAbi.js';
 import * as fs from 'fs';
+import { contractAbi } from './abi/contractAbi.js';
 
 export default class DataIndex {
     url = 'https://polygon-rpc.com';
-    contractAddress = '0x2953399124f0cbb46d2cbacd8a89cf0599974963';
+    contractAddress = '0xDEDeE6BDCEDbBFD0177973b3EFf3d119cA7e6E60';
     customHttpProvider = null;
     signer = null;
     presaleContract = null;
@@ -21,7 +22,7 @@ export default class DataIndex {
         this.signer = wallet.connect(this.customHttpProvider);
         this.presaleContract = new ethers.Contract(
             this.contractAddress,
-            openseaAbi,
+            contractAbi,
             this.signer,
         );
     }
@@ -46,7 +47,7 @@ export default class DataIndex {
     async getData() {
         const header = 'to, from, value, txHash, block \r\n';
         try {
-            fs.writeFileSync('opensea.csv', header);
+            fs.readFileSync('opensea.csv', header);
             //file written successfully
         } catch (err) {
             console.error(err);
