@@ -1,11 +1,12 @@
 import { ethers } from 'ethers';
 import express from 'express';
 import DataIndex from './opensea-data.js';
+import BSCData from './bsc-data.js';
 
 var app = express();
 const port = 3000;
 
-var data = new DataIndex();
+var data = new BSCData();
 await data.getData();
 data.listen();
 var url = 'https://polygon-rpc.com';
@@ -16,8 +17,7 @@ app.get('/', async function (req, res) {
     const blockNumber = await customHttpProvider.getBlockNumber();
     const block = await customHttpProvider.getBlock(blockNumber);
     res.send(
-        `Current block number ${blockNumber} & timestamp ${
-            block.timestamp
+        `Current block number ${blockNumber} & timestamp ${block.timestamp
         } & date ${new Date(block.timestamp * 1000)}`,
     );
 });
