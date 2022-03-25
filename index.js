@@ -7,7 +7,7 @@ var app = express();
 const port = 3000;
 
 var data = new BSCData();
-await data.getData();
+await data.getPair();
 data.listen();
 var url = 'https://polygon-rpc.com';
 var contractAddress = '0x2953399124f0cbb46d2cbacd8a89cf0599974963';

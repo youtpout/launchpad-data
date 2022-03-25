@@ -2,13 +2,20 @@ import { ethers } from 'ethers';
 import { openseaAbi } from './abi/openseaAbi.js';
 import * as fs from 'fs';
 import { erc20 } from './abi/erc20.js';
+import { routerv2 } from './abi/routerv2.js';
+import { pair } from './abi/pair.js';
+import { BigNumber } from 'ethers';
 
 export default class BSCData {
     url = 'https://bsc-dataseed1.defibit.io/';
     contractAddress = '0x9b8eecf97de95461082362e4afd3a0e27cfbc23e';
+    pancakeAddress = '0x10ED43C718714eb63d5aA57B78B54704E256024E';
+    pairAddress = '0x0450aC685B3a4c63C6CCF160D8289f97F6711F91';
     customHttpProvider = null;
     signer = null;
     presaleContract = null;
+    pairContract = null;
+    routerContract = null;
     datas = [];
     lastBlock = 16068318;
     firstBlock = 16056898;
@@ -28,6 +35,18 @@ export default class BSCData {
             erc20,
             this.signer,
         );
+
+        this.pairContract = new ethers.Contract(
+            this.pairAddress,
+            pair,
+            this.signer,
+        );
+
+        this.routerContract = new ethers.Contract(
+            this.pancakeAddress,
+            routerv2,
+            this.signer,
+        );
     }
 
     listen() {
@@ -45,6 +64,107 @@ export default class BSCData {
                 console.log('event', event.transactionHash);
             },
         );
+    }
+
+    async getRouter() {
+        const header = 'from, in, out, dollar, type, txHash, block \r\n';
+        try {
+            fs.writeFileSync('tigger-swap.csv', header);
+            //file written successfully
+        } catch (err) {
+            console.error(err);
+        }
+
+        let filter = {
+            address: this.pancakeAddress,
+            topics: [
+                "0x7ff36ab5"
+
+            ]
+        };
+
+        //let filterSwap = this.routerContract.filters.swapETHForExactTokens(null, null, null, null);
+
+        let result = [];
+        for (let index = 0; index < 1; index++) {
+            const start = this.lastBlock - 1000 * (index + 1);
+            const end = this.lastBlock - 1000 * index;
+            console.log('from to', start, end);
+            try {
+                this.providers.ge
+                let logsFrom = await this.routerContract.queryFilter(
+                    filter,
+                    start,
+                    end,
+                );
+                console.log(logsFrom);
+                result.push(logsFrom);
+                await this.createFilePair(logsFrom);
+                console.log('index file', this.indexFile);
+            } catch (error) {
+                console.log('error block', error);
+            }
+        }
+
+        console.log('file created');
+    }
+
+    async getPair() {
+        const header = 'caller, swap sender, swap to , in, out, dollar, type, txHash, block \r\n';
+        try {
+            fs.writeFileSync('tigger-swap.csv', header);
+            //file written successfully
+        } catch (err) {
+            console.error(err);
+        }
+
+        let filterSwap = this.pairContract.filters.Swap();
+
+        let result = [];
+        for (let index = 0; index < 13; index++) {
+            const start = this.lastBlock - 1000 * (index + 1);
+            const end = this.lastBlock - 1000 * index;
+            console.log('from to', start, end);
+            try {
+                let logsFrom = await this.pairContract.queryFilter(
+                    filterSwap,
+                    start,
+                    end,
+                );
+                result.push(logsFrom);
+                await this.createFilePair(logsFrom);
+                console.log('index file', this.indexFile);
+            } catch (error) {
+                console.log('error block', error);
+            }
+        }
+
+        console.log('file created');
+    }
+
+    async createFilePair(logsFrom) {
+        let dollarPrice = 372;
+        let result = '';
+        logsFrom = logsFrom.sort((a, b) => b.blockNumber - a.blockNumber);
+        for (let index = 0; index < logsFrom.length; index++) {
+            const element = logsFrom[index];
+            //console.log(element);
+            const args = element.args;
+            let amountIn = args.amount0In.isZero() ? args.amount1In : args.amount0In;
+            let amountOut = args.amount0Out.isZero() ? args.amount1Out : args.amount0Out;
+            let typeSell = amountIn > amountOut ? "sell" : "buy";
+            console.log(amountIn);
+            let dollar = args.to === this.pancakeAddress ? (this.transform(amountOut) * dollarPrice) : (this.transform(amountIn) * dollarPrice);
+            result += `${args.sender},${args.to},${this.transform(amountIn)},${this.transform(amountOut)},${dollar},${typeSell},${element.transactionHash},${element.blockNumber}, \r\n`;
+
+            this.indexFile++;
+        }
+        try {
+            fs.appendFileSync('tigger-swap.csv', result);
+            //file written successfully
+        } catch (err) {
+            console.error(err);
+        }
     }
 
     async getData() {
