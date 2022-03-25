@@ -159,7 +159,7 @@ export default class BSCData {
             const args = element.args;
             let amountIn = args.amount0In.isZero() ? args.amount1In : args.amount0In;
             let amountOut = args.amount0Out.isZero() ? args.amount1Out : args.amount0Out;
-            let typeSell = amountIn > amountOut ? "sell" : "buy";
+            let typeSell = amountIn.gt(amountOut) ? "sell" : "buy";
             let caller = "";
             if (args.sender !== this.pancakeAddress) {
                 caller = args.sender;
@@ -182,7 +182,7 @@ export default class BSCData {
                 }
             }
 
-            let dollar = amountIn > amountOut ? (this.transform(amountOut) * dollarPrice) : (this.transform(amountIn) * dollarPrice);
+            let dollar = typeSell === "sell" ? (this.transform(amountOut) * dollarPrice) : (this.transform(amountIn) * dollarPrice);
             result += `${caller},${args.sender},${args.to},${this.transform(amountIn)},${this.transform(amountOut)},${dollar},${typeSell},${element.transactionHash},${element.blockNumber}, \r\n`;
 
             this.indexFile++;
