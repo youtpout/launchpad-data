@@ -119,6 +119,7 @@ export default class BSCData {
         }
 
         let filterSwap = this.pairContract.filters.Swap();
+        let filterTransfer = this.presaleContract.filters.Transfer();
 
         let result = [];
         for (let index = 0; index < 13; index++) {
@@ -131,8 +132,13 @@ export default class BSCData {
                     start,
                     end,
                 );
+                let txFrom = await this.presaleContract.queryFilter(
+                    filterTransfer,
+                    start,
+                    end,
+                );
                 result.push(logsFrom);
-                await this.createFilePair(logsFrom);
+                await this.createFilePair(logsFrom, txFrom);
                 console.log('index file', this.indexFile);
             } catch (error) {
                 console.log('error block', error);
@@ -142,7 +148,8 @@ export default class BSCData {
         console.log('file created');
     }
 
-    async createFilePair(logsFrom) {
+    async createFilePair(logsFrom, txFrom) {
+        let excludeAddress = [this.pairAddress, this.pancakeAddress, this.contractAddress];
         let dollarPrice = 372;
         let result = '';
         logsFrom = logsFrom.sort((a, b) => b.blockNumber - a.blockNumber);
@@ -153,9 +160,30 @@ export default class BSCData {
             let amountIn = args.amount0In.isZero() ? args.amount1In : args.amount0In;
             let amountOut = args.amount0Out.isZero() ? args.amount1Out : args.amount0Out;
             let typeSell = amountIn > amountOut ? "sell" : "buy";
-            console.log(amountIn);
-            let dollar = args.to === this.pancakeAddress ? (this.transform(amountOut) * dollarPrice) : (this.transform(amountIn) * dollarPrice);
-            result += `${args.sender},${args.to},${this.transform(amountIn)},${this.transform(amountOut)},${dollar},${typeSell},${element.transactionHash},${element.blockNumber}, \r\n`;
+            let caller = "";
+            if (args.sender !== this.pancakeAddress) {
+                caller = args.sender;
+            } else if (args.to !== this.pancakeAddress) {
+                caller = args.to;
+            } else {
+                let tx = txFrom?.filter(t => t.transactionHash === element.transactionHash);
+                if (tx.length) {
+                    for (let index = 0; index < tx.length; index++) {
+                        const r = tx[index];
+                        if (!excludeAddress.some(e => e === r.args.from)) {
+                            caller = r.args.from;
+                            break;
+                        }
+                        else if (!excludeAddress.some(e => e === r.args.to)) {
+                            caller = r.args.to;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            let dollar = amountIn > amountOut ? (this.transform(amountOut) * dollarPrice) : (this.transform(amountIn) * dollarPrice);
+            result += `${caller},${args.sender},${args.to},${this.transform(amountIn)},${this.transform(amountOut)},${dollar},${typeSell},${element.transactionHash},${element.blockNumber}, \r\n`;
 
             this.indexFile++;
         }
