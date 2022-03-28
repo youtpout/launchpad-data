@@ -5,6 +5,7 @@ import { erc20 } from './abi/erc20.js';
 import { routerv2 } from './abi/routerv2.js';
 import { pair } from './abi/pair.js';
 import { BigNumber } from 'ethers';
+import { info } from 'console';
 
 export default class BSCData {
     url = 'https://bsc-dataseed1.defibit.io/';
@@ -110,7 +111,8 @@ export default class BSCData {
     }
 
     async getPair() {
-        const header = 'caller, swap sender, swap to , in, out, dollar, type, txHash, block \r\n';
+        //const header = 'caller, swap sender, swap to , in, out, dollar, type, txHash, block \r\n';
+        const header = 'from, buy, buy dollar, sell, sell dollar \r\n';
         try {
             fs.writeFileSync('tigger-swap.csv', header);
             //file written successfully
@@ -137,16 +139,98 @@ export default class BSCData {
                     start,
                     end,
                 );
-                result.push(logsFrom);
-                await this.createFilePair(logsFrom, txFrom);
+
+                let datas = await this.createDataPair(logsFrom, txFrom);
+                result = result.concat(datas);
                 console.log('index file', this.indexFile);
             } catch (error) {
                 console.log('error block', error);
             }
         }
 
+        let dollarPrice = 372;
+        let infos = [];
+        result.forEach(r => {
+            if (!infos.some(d => d.from === r.from)) {
+
+                let sells = result.filter(s => s.from === r.from && s.sell);
+                let buys = result.filter(s => s.from === r.from && !s.sell);
+                let sellsAmount = sells.map(s => s.amountOut).reduce((previousValue, currentValue) => previousValue + currentValue, 0);
+                let buysAmount = buys.map(s => s.amountIn).reduce((previousValue, currentValue) => previousValue + currentValue, 0);
+                let data = {
+                    from: r.from,
+                    buy: buysAmount,
+                    buyDollar: buysAmount * dollarPrice,
+                    sell: sellsAmount,
+                    sellDollar: sellsAmount * dollarPrice
+                }
+                infos.push(data);
+                // info += `${data.from},${data.buy},${data.buyDollar},${data.sell},${data.sellDollar} \r\n`;
+            }
+        });
+        let text = "";
+        infos.forEach(data => {
+            text += `${data.from},${data.buy},${data.buyDollar},${data.sell},${data.sellDollar} \r\n`;
+        })
+
+        try {
+            fs.appendFileSync('tigger-swap.csv', text);
+            //file written successfully
+        } catch (err) {
+            console.error(err);
+        }
+
         console.log('file created');
     }
+
+    async createDataPair(logsFrom, txFrom) {
+        let excludeAddress = [this.pairAddress, this.pancakeAddress, this.contractAddress];
+
+        let result = [];
+        logsFrom = logsFrom.sort((a, b) => b.blockNumber - a.blockNumber);
+        for (let index = 0; index < logsFrom.length; index++) {
+            const element = logsFrom[index];
+            //console.log(element);
+            const args = element.args;
+            let amountIn = args.amount0In.isZero() ? args.amount1In : args.amount0In;
+            let amountOut = args.amount0Out.isZero() ? args.amount1Out : args.amount0Out;
+            let sell = amountIn.gt(amountOut);
+            let caller = "";
+            if (args.sender !== this.pancakeAddress) {
+                caller = args.sender;
+            } else if (args.to !== this.pancakeAddress) {
+                caller = args.to;
+            } else {
+                let tx = txFrom?.filter(t => t.transactionHash === element.transactionHash);
+                if (tx.length) {
+                    for (let index = 0; index < tx.length; index++) {
+                        const r = tx[index];
+                        if (!excludeAddress.some(e => e === r.args.from)) {
+                            caller = r.args.from;
+                            break;
+                        }
+                        else if (!excludeAddress.some(e => e === r.args.to)) {
+                            caller = r.args.to;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            let data = {
+                from: caller,
+                amountIn: this.transform(amountIn),
+                amountOut: this.transform(amountOut),
+                sell: sell
+            }
+            result.push(data);
+            this.indexFile++;
+        }
+
+        return result;
+
+    }
+
 
     async createFilePair(logsFrom, txFrom) {
         let excludeAddress = [this.pairAddress, this.pancakeAddress, this.contractAddress];
